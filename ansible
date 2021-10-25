@@ -1,0 +1,334 @@
+# working with roles
+
+# role 1 (sites)
+---
+- name: install git
+  apt:
+     name: git
+     state: present
+     update_cache: yes
+
+# role 2 (mongodb)
+---
+- name: MongoDB - Import public key
+  apt_key:
+      keyserver: hkp://keyserver.ubuntu.com:80
+      id: EA312927
+
+- name: MongoDB - Add repository
+  apt_repository:
+       filename: '/etc/apt/sources.list.d/mongodb-org-3.2.list'
+       repo: 'deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.2 mul>
+       state: present
+       update_cache: yes
+
+- name: MongoDB - Install MongoDB
+  apt:
+    name: mongodb-org
+    state: present
+    update_cache: yes
+
+- name: Start mongod
+  shell: "Mongod &"
+
+#role 3 (nodejs)
+
+---
+- name: Node.js - Get script
+  get_url:
+      url: "http://deb.nodesource.com/setup_6.x"
+      dest: "{{ var_node }}/nodejs.sh"
+
+- name: Node.js - Set execution permission to script
+  file:
+    path: "{{ var_node }}/nodejs.sh"
+    mode: "u+x"
+
+- name: Node.js - Excute installation script
+  shell: "{{ var_node }}/nodejs.sh"
+
+- name: Node.js - Remove installation script
+  file:
+    path: "{{ var_node}}/nodejs.sh"
+    state: absent
+
+- name: Node.js - install Nodejs
+  apt: name={{ item }} state=present update_cache=yes
+  with_items:
+      - build-essential
+      - nodejs
+
+- name: Install NPM
+  apt:
+    name: npm
+    state: present
+
+- name: Node.js | Install bower and gulp globally
+  npm: name={{ item }} state=present global=yes
+  with_items:
+     - bower
+     - gulp
+
+
+---
+- hosts:
+      localhost
+  become: true
+  vars:
+    ansible_become_pass: 091283@Asd
+    var_node: /tmp
+  roles:
+    - sites
+    - Mongodb
+    - nodejs
+
+
+
+# ad-hoc command
+
+ansible all -m ping
+ansible sever name -m ping
+
+uptime
+ansible ipadd of server/all -m shell module name -a "uptime"
+for group/s
+ansible groupname1:groupname2 -m shell module name -a "uptime"
+
+free -m
+ansible ipadd of server/all -m shell module name -a "free -m"
+for group/s
+ansible groupname1:groupname2 -m shell module name -a "free -m"
+
+# ad-hoc command:
+ansible -i[inventory name(optional)] name of server/group(single/multiple) -m modulename -a[argu_value(optional)]
+example: ansible all -m shell -a "uptime"
+
+# ansible-doc -l (to see default modules)
+
+
+# trans. files using copy modules
+syntax: ansible servername -m copy -a "src=/source/file/path dest=dest/location"
+example: ansible db -m copy -a "src=./hosts dest=/tmp"
+
+# copy content
+ansible servername -m copy -a "content='hello-world' dest=/tmp/hello.txt"
+
+#download file using ad-hoc cmd
+ ansible servername -m fetch -a "src=/source/file/path dest=dest/location"
+
+
+# create/delete file/directory using ad-hoc cmd
+create:
+- ansible server -m file -a "path=location/filename.txt state=touch"
+- ansible server -m file -a "path=location/directory_name state=directory"
+
+delete:
+- ansible server -m file -a "path=location/filename.txt state=absent"
+
+- ansible servername -m ping --list-hosts [to see hosts on server]
+
+
+# install pkg using ad-hoc cmd
+ansible sever -m apt-get -a "name=git state=present/latest"
+
+
+# ansible groupname -m setup (setup module to gather facts)
+
+# work with ansible custom facts
+ansible server -m module -a "argu"
+example: ansible all -m shell -a "git --version"
+
+
+# usage of debug module
+---
+- name: localhost
+  tasks: 
+    - debug: msg="welcom to ansible"
+    
+2. 
+---
+- name: debug module
+  hosts: localhost
+  tasks:
+    - name: msg of debug module
+      debug: 
+      msg: "welcom to ansible"
+      
+3. 
+---
+- name: debug module
+  hosts: localhost
+  tasks:
+    - name: msg of debug module
+      debug: 
+        msg: "welcom to ansible"
+        verbosity: 0
+    - name: verbosity is 2
+      debug:
+        msg: "verbosity is 2"
+        verbosity: 2
+        
+        
+# read/write a variable value
+---
+ - hosts: localhost
+   vars:
+     x: 45
+     my_name: "xyz"
+     gather_facts: false
+   tasks:
+     - debug:
+         msg:
+          - "the x value is: {{x}}"
+          - "the my_name is: {{my_name}}"
+
+2.
+---
+ - hosts: localhost
+   vars:
+     x: 45
+     my_name: "xyz"
+     var_prompt:
+        name: y 
+        prompt: enter the value of y
+        private: false
+        gather_facts: false
+        tasks:
+          - debug:
+               msg:
+                - "the x value is: {{x}}"
+                - "the my_name is: {{my_name}}"
+                - "the y value is: {{y}}"
+                
+3. 
+---
+ - hosts: localhost
+   vars:
+     x: 45
+     my_name: "xyz"
+     var_prompt:
+        - name: user_name 
+          prompt: enter the user name
+          private: no
+        - name: password
+          prompt: enter the password
+          private: yes
+       gather_facts: false
+       tasks: 
+        - debug: 
+            msg: "the username: {{user_name}} and password: {{password}}"   
+                
+# working with commandline argu.
+---
+- hosts: localhost
+  vars:
+    x: 45
+  gather_facts: false
+  tasks:
+    - debug: var=x
+
+2. 
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - debug: var=x
+    
+3.
+hosts: localhost
+  gather_facts: false
+  tasks:
+    - debug:
+         msg:
+          - "x value: {{x}}"
+          - "y value: {{y}}"
+          
+          
+
+# comparison operators
+
+---
+- name: working with comparison operator
+  hosts: localhost
+  gather_facts: false
+  vars:
+     x: 6
+     y: 10
+  tasks:
+    - debug:
+        msg:
+         - "the value of x is: {{x}} and the value of y is: {{y}}"
+         - "x == y:  {{x==y}}"
+         - "x != y:  {{x!=y}}"
+         - "x < y:   {{x<y}}"
+         - "x > y:   {{x>y}}"
+         - "x <= y:  {{x<=y}}"
+         - "x >= y:  {{x>=y}}"
+
+
+# error handling 
+
+---
+- name: working with comparison operator
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - command: "ls /var/www/html"
+      register: html_out
+    - debug: var=html_out
+    
+    - command: "ls var/www/html"
+      register: html_out
+      ignore_errors: yes
+    - debug: var=html_out
+
+    - command: "ls /etc/ansible/roles/sites"
+      register: sites_out
+      ignore_errors: yes
+    - debug: var=sites_out
+
+
+# error handling with block
+
+---
+- name: working with comparison operator
+  hosts: localhost
+  gather_facts: false
+  tasks:
+     - block:
+         - command: "ls /var/www/html"
+           register: html_out
+         - command: "ls var/www/html"
+           register: html_out
+         - command: "ls /etc/ansible/roles/sites"
+           register: sites_out
+       ignore_errors: yes      
+       
+     - debug: var=html_out
+     - debug: var=html_out
+     - debug: var=sites_out
+     
+        
+2. 
+
+---
+- name: working with comparison operator
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - block: 
+        - name: finding file in var/www/html
+          command: "ls var/www/html"
+          register: html_out
+      rescue:
+        - debug:
+            msg: "the given path: /var/www/html is not valid path"
+      always:
+         - debug:
+              msg: "always execute"
+              
+
+
+  
+
+
+     
